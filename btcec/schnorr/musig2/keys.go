@@ -182,6 +182,9 @@ type keyAggOption struct {
 	// 86 style, where we don't expect an actual tweak and instead just
 	// commit to the public key itself.
 	bip86Tweak bool
+
+	// taprootTweakTag is the tag to use when computing the taproot tweak.
+	taprootTweakTag []byte
 }
 
 // WithKeysHash allows key aggregation to be optimize, by allowing the caller
@@ -229,6 +232,9 @@ func WithTaprootKeyTweak(scriptRoot []byte) KeyAggOption {
 			},
 		}
 		o.taprootTweak = true
+		if o.taprootTweakTag == nil {
+			o.taprootTweakTag = chainhash.TagTapTweak
+		}
 	}
 }
 
@@ -245,6 +251,17 @@ func WithBIP86KeyTweak() KeyAggOption {
 		}
 		o.taprootTweak = true
 		o.bip86Tweak = true
+		if o.taprootTweakTag == nil {
+			o.taprootTweakTag = chainhash.TagTapTweak
+		}
+	}
+}
+
+// WithTapTweakTag allows the caller to specify a custom taproot tweak tag.
+// it should be used in conjunction with WithTaprootKeyTweak or WithBIP86KeyTweak.
+func WithTapTweakTag(tag []byte) KeyAggOption {
+	return func(o *keyAggOption) {
+		o.taprootTweakTag = tag
 	}
 }
 
@@ -421,7 +438,7 @@ func AggregateKeys(keys []*btcec.PublicKey, sort bool,
 		// the first one, as you can only specify a single tweak when
 		// using the taproot mode with this API.
 		tapTweakHash := chainhash.TaggedHash(
-			chainhash.TagTapTweak, schnorr.SerializePubKey(key),
+			opts.taprootTweakTag, schnorr.SerializePubKey(key),
 			tweakBytes,
 		)
 		opts.tweaks[0].Tweak = *tapTweakHash

@@ -606,6 +606,8 @@ type combineOptions struct {
 	combinedKey *btcec.PublicKey
 
 	tweakAcc *btcec.ModNScalar
+
+	taprootTweakTag []byte
 }
 
 // defaultCombineOptions returns the default set of signing operations.
@@ -632,6 +634,13 @@ func WithTweakedCombine(msg [32]byte, keys []*btcec.PublicKey,
 	}
 }
 
+// WithTaprootTweakTagCombine allows the caller to overwrite the default bitcoin tapTweak tag.
+func WithTapTweakTagCombine(taprootTweakTag []byte) CombineOption {
+	return func(o *combineOptions) {
+		o.taprootTweakTag = taprootTweakTag
+	}
+}
+
 // WithTaprootTweakedCombine is similar to the WithTweakedCombine option, but
 // assumes a BIP 341 context where the final tweaked key is to be used as the
 // output key, where the internal key is the aggregated key pre-tweak.
@@ -643,8 +652,16 @@ func WithTaprootTweakedCombine(msg [32]byte, keys []*btcec.PublicKey,
 	scriptRoot []byte, sort bool) CombineOption {
 
 	return func(o *combineOptions) {
+		opts := []KeyAggOption{
+			WithTaprootKeyTweak(scriptRoot),
+		}
+
+		if o.taprootTweakTag != nil {
+			opts = append(opts, WithTapTweakTag(o.taprootTweakTag))
+		}
+
 		combinedKey, _, tweakAcc, _ := AggregateKeys(
-			keys, sort, WithTaprootKeyTweak(scriptRoot),
+			keys, sort, opts...,
 		)
 
 		o.msg = msg
@@ -665,8 +682,15 @@ func WithBip86TweakedCombine(msg [32]byte, keys []*btcec.PublicKey,
 	sort bool) CombineOption {
 
 	return func(o *combineOptions) {
+		opts := []KeyAggOption{
+			WithBIP86KeyTweak(),
+		}
+		if o.taprootTweakTag != nil {
+			opts = append(opts, WithTapTweakTag(o.taprootTweakTag))
+		}
+
 		combinedKey, _, tweakAcc, _ := AggregateKeys(
-			keys, sort, WithBIP86KeyTweak(),
+			keys, sort, opts...,
 		)
 
 		o.msg = msg
