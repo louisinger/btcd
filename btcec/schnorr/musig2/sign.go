@@ -134,6 +134,9 @@ type signOptions struct {
 	// 86 style, where we don't expect an actual tweak and instead just
 	// commit to the public key itself.
 	bip86Tweak bool
+
+	// taprootTweakTag lets to overwrite default taproot tweak tag
+	taprootTweakTag []byte
 }
 
 // defaultSignOptions returns the default set of signing operations.
@@ -163,6 +166,13 @@ func WithSortedKeys() SignOption {
 func WithTweaks(tweaks ...KeyTweakDesc) SignOption {
 	return func(o *signOptions) {
 		o.tweaks = tweaks
+	}
+}
+
+// WithTaprootTweak determines if the aggregated public key used should apply a custom taproot tweak tag.
+func WithTaprootSignTweakTag(tag []byte) SignOption {
+	return func(o *signOptions) {
+		o.taprootTweakTag = tag
 	}
 }
 
@@ -297,6 +307,14 @@ func Sign(secNonce [SecNonceSize]byte, privKey *btcec.PrivateKey,
 		keyAggOpts = append(
 			keyAggOpts, WithTaprootKeyTweak(opts.taprootTweak),
 		)
+
+		if opts.taprootTweakTag != nil {
+			keyAggOpts = append(
+				keyAggOpts, WithTapTweakTag(
+					opts.taprootTweakTag,
+				),
+			)
+		}
 	case len(opts.tweaks) != 0:
 		keyAggOpts = append(keyAggOpts, WithKeyTweaks(opts.tweaks...))
 	}
@@ -454,6 +472,14 @@ func verifyPartialSig(partialSig *PartialSignature, pubNonce [PubNonceSize]byte,
 		keyAggOpts = append(
 			keyAggOpts, WithTaprootKeyTweak(opts.taprootTweak),
 		)
+
+		if opts.taprootTweakTag != nil {
+			keyAggOpts = append(
+				keyAggOpts, WithTapTweakTag(
+					opts.taprootTweakTag,
+				),
+			)
+		}
 	case len(opts.tweaks) != 0:
 		keyAggOpts = append(keyAggOpts, WithKeyTweaks(opts.tweaks...))
 	}
